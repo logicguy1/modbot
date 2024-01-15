@@ -3,6 +3,7 @@ from discord import ui
 import traceback
 import time
 
+from config import Config
 from modules.embed import Embed
 
 class OpenReportView(ui.View):
@@ -21,7 +22,7 @@ class ReportModal(ui.Modal, title='Report Member'):
         super().__init__()
 
     async def on_submit(self, interaction: discord.Interaction):
-        channel = interaction.guild.get_channel(1195412944440262698)
+        channel = interaction.guild.get_channel(Config.FORUM_ID)
         member = interaction.guild.get_member(int(str(self.userid)))
 
         embed = Embed(title=f"Report - {member} ({member.id})")

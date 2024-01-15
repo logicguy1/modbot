@@ -9,30 +9,69 @@ import traceback
 import sys
 import uuid
 
+from config import Config
 from modules.embed import Embed
+from modules.SQLiteMGR import SQLiteManager
 
 from ui.report import OpenReportView, ReportModal
 from ui.action import TimeoutModal, BanView, KickView
 from ui.error import OpenErrorView
+from ui.verify import OpenVerifyView, verify_member
 
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-GUILD_ID = 1178990094301007942
+db = SQLiteManager("database.db")
+db.connect()
+db.execute_query("""
+CREATE TABLE IF NOT EXISTS "accounts" (
+	"id"	INTEGER,
+	"user_name"	TEXT,
+	"user_id"	TEXT,
+	"account_type"	TEXT,
+	"account_name"	TEXT,
+	"account_id"	TEXT,
+	PRIMARY KEY("id" AUTOINCREMENT)
+)
+""")
+db.execute_query("""
+CREATE TABLE "verify_attempts" (
+	"id"	INTEGER,
+	"user_id"	TEXT,
+	"timestamp"	TEXT,
+	PRIMARY KEY("id" AUTOINCREMENT)
+)
+""")
+db.close_connection()
 
-@tree.command(name = "showreport", description = "Show the HR Contact Form interface", guild=discord.Object(id=GUILD_ID)) 
-async def create_table(ctx):
-    print(ctx.user)
-    print(ctx.user.id)
-    if ctx.user.id not in [936357105760370729, 192083491217866752]: # Me :)
+@tree.command(name = "showreport", description = "Show the HR Contact Form interface", guild=discord.Object(id=Config.GUILD_ID)) 
+async def create_report(ctx):
+    if ctx.user.id not in Config.ADMIN_IDS: # Me :)
         await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
         return
     embed = Embed(title = "Disciplinary Report Form", description = f"Utilize this interface to initiate a Disciplinary Report Form with a User.")
     await ctx.response.send_message("Did that for ya :)", ephemeral=True)
     await ctx.channel.send(embed = embed, view=OpenReportView())
 
-@tree.command(name = "send", description = "Send a message to a reported user", guild=discord.Object(id=GUILD_ID))
+
+@tree.command(name = "showverify", description = "Show the HR Verification interface", guild=discord.Object(id=Config.GUILD_ID)) 
+async def create_verify(ctx):
+    if ctx.user.id not in Config.ADMIN_IDS: # Me :)
+        await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
+        return
+    embed = Embed(title = "HR Verification Interface", description = f"""Management requires new employees at the company to verify themselves, this is to avoid spam accounts from entering the sever.
+
+To be eligable to join the company you must comply with the following:
+- Your account must be `{Config.ACCOUNT_MIN_AGE}` day{'s' if Config.ACCOUNT_MIN_AGE !=1 else ''} or older.
+- You must have at least `{Config.ACCOUNT_MIN_CONNECT}` external account{'s' if Config.ACCOUNT_MIN_CONNECT !=1 else ''} connected to your profile.
+
+**We will never refer you to an external site or ask you for any personal information**""")
+    await ctx.response.send_message("Did that for ya :)", ephemeral=True)
+    await ctx.channel.send(embed = embed, view=OpenVerifyView())
+
+
+@tree.command(name = "send", description = "Send a message to a reported user", guild=discord.Object(id=Config.GUILD_ID))
 async def send(ctx, message: str):
     member = ctx.guild.get_member(int(ctx.channel.name.split(" - ")[0]))
     if member is not None:
@@ -78,7 +117,9 @@ async def on_interaction(interaction):
                 member_id=interaction.data.get("custom_id").split("_")[2]
             )
         )
-
+    if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "verify":
+        print("Verifying")
+        await verify_member(interaction)
 
 @tree.error
 async def on_app_command_error(
@@ -97,16 +138,14 @@ async def on_app_command_error(
 
 @client.event
 async def on_message(message):
-    print(message)
+    print(str(message.author), str(message.content))
     if not message.author.bot:
-        print("Not bot")
         if message.content == "t!sync" and message.author.id == 936357105760370729: # Me :)
             await tree.sync()
             await message.channel.send("Command tree synced")
 
         if isinstance(message.channel, discord.channel.DMChannel):
-            print("In dm")
-            channel = await client.fetch_channel(1195412944440262698)
+            channel = await client.fetch_channel(Config.FORUM_ID)
             found = False
             for i in channel.threads:
                 if (
@@ -122,9 +161,7 @@ async def on_message(message):
                     await i.send(embed=embed)
 
                     for a in message.attachments:
-                        await i.send(
-                            f"User sent an attachment `{a.filename}`\n{a.url}"
-                        )
+                        await i.send(f"User sent an attachment `{a.filename}`\n{a.url}")
 
                     await message.add_reaction("✅")
                     found = True
@@ -133,9 +170,9 @@ async def on_message(message):
 @client.event
 async def on_ready():
     print("Syncing..")
-    await tree.sync(guild=discord.Object(id=GUILD_ID))
+    await tree.sync(guild=discord.Object(id=Config.GUILD_ID))
     print("Synced!")
 
 
-client.run("")
+client.run(Config.BOT_TOKEN)
 
