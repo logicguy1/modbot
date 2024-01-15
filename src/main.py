@@ -2,16 +2,24 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord import ui
+import requests
+import io
 import re
 import time
 import asyncio
 import traceback
 import sys
 import uuid
+import base64
+import yaml
+
+import logging
+logging.basicConfig(level=logging.INFO)
 
 from config import Config
 from modules.embed import Embed
 from modules.SQLiteMGR import SQLiteManager
+from modules.modcodes import respond_to_code
 
 from ui.report import OpenReportView, ReportModal
 from ui.action import TimeoutModal, BanView, KickView
@@ -22,7 +30,7 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-db = SQLiteManager("database.db")
+db = SQLiteManager("database.db", logging)
 db.connect()
 db.execute_query("""
 CREATE TABLE IF NOT EXISTS "accounts" (
@@ -36,7 +44,7 @@ CREATE TABLE IF NOT EXISTS "accounts" (
 )
 """)
 db.execute_query("""
-CREATE TABLE "verify_attempts" (
+CREATE TABLE IF NOT EXISTS "verify_attempts" (
 	"id"	INTEGER,
 	"user_id"	TEXT,
 	"timestamp"	TEXT,
@@ -119,7 +127,8 @@ async def on_interaction(interaction):
         )
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "verify":
         print("Verifying")
-        await verify_member(interaction)
+        await verify_member(interaction, logging)
+
 
 @tree.error
 async def on_app_command_error(
@@ -136,14 +145,23 @@ async def on_app_command_error(
     except discord.errors.InteractionResponded:
         await interaction.channel.send(interaction.user.mention, embed=embed, view=OpenErrorView(error=error, uid=uid))
 
+
 @client.event
 async def on_message(message):
     print(str(message.author), str(message.content))
     if not message.author.bot:
-        if message.content == "t!sync" and message.author.id == 936357105760370729: # Me :)
+        # Sync command
+        if message.content == "t!sync" and message.author.id in Config.ADMIN_IDS: # Me :)
             await tree.sync()
             await message.channel.send("Command tree synced")
 
+        # Detect modcodes
+        uuid_pattern = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.IGNORECASE)
+        found_uuids = uuid_pattern.findall(message.content)
+        if found_uuids:
+            await respond_to_code(message, found_uuids[0])
+
+        # Modmail system
         if isinstance(message.channel, discord.channel.DMChannel):
             channel = await client.fetch_channel(Config.FORUM_ID)
             found = False
@@ -169,10 +187,10 @@ async def on_message(message):
 
 @client.event
 async def on_ready():
-    print("Syncing..")
+    logging.info("Syncing..")
     await tree.sync(guild=discord.Object(id=Config.GUILD_ID))
-    print("Synced!")
+    logging.info("Synced!")
 
 
-client.run(Config.BOT_TOKEN)
+client.run(Config.BOT_TOKEN, log_handler=None)
 

@@ -17,8 +17,8 @@ class OpenVerifyView(ui.View):
         self.add_item(btn)
 
 
-async def verify_member(interaction):
-    db = SQLiteManager("database.db")
+async def verify_member(interaction, logging):
+    db = SQLiteManager("database.db", logging)
     db.connect()
 
     log = interaction.guild.get_channel(Config.VERIFY_LOG)
