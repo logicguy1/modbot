@@ -10,4 +10,17 @@ class ModCodeView(ui.View):
 
     @discord.ui.button(label = "View Mods", style = discord.ButtonStyle.primary)
     async def test(self, interaction: discord.Interaction, button: discord.Button):
-        await interaction.response.send_message(self.text, ephemeral=True)
+        if len(self.text) >= 1900:
+            out = ""
+            carry = ""
+            for i in self.text.split("\n"):
+                if len(out) < 1900:
+                    out += i + "\n"
+                else:
+                    carry += i + "\n"
+
+            out += "`Max message length reached, use the button below to view the next set of mods`"
+            await interaction.response.send_message(out, ephemeral=True, view=ModCodeView(text=carry))
+
+        else:
+            await interaction.response.send_message(self.text, ephemeral=True)
