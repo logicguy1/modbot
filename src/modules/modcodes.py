@@ -34,12 +34,12 @@ async def respond_to_code(msg, code):
                 name = "-".join(mod['name'].split('-')[1:])
                 version = f"{mod['version']['major']}.{mod['version']['minor']}.{mod['version']['patch']}"
                 if mod['enabled']:
-                    mods.append(f"> `{name}` - `{version}`")
+                    mods.append(f"> `{name} - {version}`")
                 else:
-                    mods.append(f"> ~~`{name}`~~ - ~~`{version}`~~")
+                    mods.append(f"> ~~`{name} - {version}`~~")
 
             mod_array_display = "\n".join(mods)
-            embed = Embed(title=f"ModCode - {name}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n`{code}`\n To browse the mods, use the button below.")
+            embed = Embed(title=f"ModCode - {name}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n> **`{code}`**\n To browse the mods, use the button below.")
             await msg.reply(embed=embed, view=ModCodeView(text=mod_array_display))
 
     except requests.exceptions.RequestException as e:
