@@ -126,7 +126,7 @@ class KickView(ui.View):
             await interaction.channel.send("```The user has DMS disabled, i am unable to contact.```")
 
         try:
-            await member.ban()
+            await member.kick()
         except:
             embed = Embed(title="Kick Failed", description="Management is not able to kick this user")
             embed.set_color("red")
