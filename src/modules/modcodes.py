@@ -27,17 +27,19 @@ async def respond_to_code(msg, code):
             data = yaml.safe_load(export_r2x_data)
 
             name = data["profileName"]
-            modcount = len(data["mods"])
+            modcount = len([i for i in data["mods"] if mod['enabled'])
 
             mods = []
             for mod in data['mods']:
+                name = "-".join(mod['name'].split('-')[1:])
+                version = f"{mod['version']['major']}.{mod['version']['minor']}.{mod['version']['patch']}"
                 if mod['enabled']:
-                    mods.append(f"> {mod['name']}-{mod['version']['major']}.{mod['version']['minor']}.{mod['version']['patch']}")
+                    mods.append(f"> `{name}` - `{version}`")
                 else:
-                    mods.append(f"> ~~{mod['name']}-{mod['version']['major']}.{mod['version']['minor']}.{mod['version']['patch']}~~")
+                    mods.append(f"> ~~`{name}`~~ - ~~`{version}`~~")
 
             mod_array_display = "\n".join(mods)
-            embed = Embed(title=f"ModCode - {name}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n To browse the mods, use the button below.")
+            embed = Embed(title=f"ModCode - {name}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n`{code}`\n To browse the mods, use the button below.")
             await msg.reply(embed=embed, view=ModCodeView(text=mod_array_display))
 
     except requests.exceptions.RequestException as e:
