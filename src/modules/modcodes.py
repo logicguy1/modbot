@@ -6,6 +6,7 @@ import yaml
 from zipfile import ZipFile
 
 from modules.embed import Embed
+from modules.SQLiteMGR import SQLiteManager
 from ui.modcode import ModCodeView
 
 async def respond_to_code(msg, code):
@@ -29,14 +30,27 @@ async def respond_to_code(msg, code):
             name = data["profileName"]
             modcount = len([i for i in data["mods"] if i['enabled']])
 
+            db = SQLiteManager("database.db", logging)
+            db.connect()
+
             mods = []
             for mod in data['mods']:
                 name = "-".join(mod['name'].split('-')[1:])
                 version = f"{mod['version']['major']}.{mod['version']['minor']}.{mod['version']['patch']}"
                 if mod['enabled']:
                     mods.append(f"> `{name} - {version}`")
+
+                    item = db.fetch_all(
+                        "SELECT id FROM mod_entries WHERE modcode = ? AND mod = ?",
+                        (code, mod['name'],)
+                    )
+                    db.execute_query("""
+                    
+                    """)
                 else:
                     mods.append(f"> ~~`{name} - {version}`~~")
+
+            db.close_connection()
 
             mod_array_display = "\n".join(mods)
             embed = Embed(title=f"ModCode - {name}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n> **`{code}`**\n To browse the mods, use the button below.")
