@@ -27,7 +27,7 @@ async def respond_to_code(msg, code):
             data = yaml.safe_load(export_r2x_data)
 
             name = data["profileName"]
-            modcount = len([i for i in data["mods"] if mod['enabled']])
+            modcount = len([i for i in data["mods"] if i['enabled']])
 
             mods = []
             for mod in data['mods']:
