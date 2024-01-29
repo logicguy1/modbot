@@ -11,7 +11,14 @@ import traceback
 import sys
 import uuid
 import base64
+import math
 import yaml
+from datetime import datetime, timedelta
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams["figure.figsize"] = (10,5)
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +48,16 @@ CREATE TABLE IF NOT EXISTS "accounts" (
 	"account_name"	TEXT,
 	"account_id"	TEXT,
 	PRIMARY KEY("id" AUTOINCREMENT)
+)
+""")
+db.execute_query("""
+CREATE TABLE IF NOT EXISTS "mod_entries" (
+	"id"	INTEGER,
+	"modcode"	TEXT,
+	"mod"	TEXT,
+	"timestamp"	TEXT,
+	PRIMARY KEY("id" AUTOINCREMENT)
+)
 )
 """)
 db.execute_query("""
@@ -101,6 +118,99 @@ async def send(ctx, message: str):
         embed.set_color("blue")
         await ctx.response.send_message(embed=embed)
 
+
+class StatisticsGroup(app_commands.Group):
+    @app_commands.command(name = "leaderboard", description = "View the most used mods in the server")
+    async def leaderboard(self, ctx, page: int = 1):
+        db = SQLiteManager("database.db", logging)
+        db.connect()
+
+        pagecount = math.ceil(db.fetch_all(f"SELECT COUNT(*) AS row_count FROM (SELECT DISTINCT mod FROM mod_entries) AS distinct_mods;",)[0][0] / 10)
+        if pagecount < page or page <= 0:
+            db.close_connection()
+            await ctx.response.send("Invalid page number", ephemeral=True)
+            return
+
+        mods = db.fetch_all(f"SELECT mod, count(mod) FROM mod_entries GROUP BY mod ORDER BY count(mod) DESC LIMIT 10 OFFSET {(page-1)*10}",)
+
+        db.close_connection()
+
+        out = "See what the most pobular mods in Cosmic Collectors are\n\n"
+        for idx, i in enumerate(mods):
+            out += f"> *{idx+1 + (page-1)*10}.* `{i[0]}` - {i[1]} uses\n"
+
+        out += f"\n*```Page {page}/{pagecount}```*"
+
+        embed = Embed(title="Mod leaderboard", description=out)
+        await ctx.response.send_message(embed=embed)
+
+    @app_commands.command(name = "get", description = "View specific information about a single mod")
+    async def get(self, ctx, mod: str):
+        db = SQLiteManager("database.db", logging)
+        db.connect()
+
+        mods = db.fetch_all(f"SELECT DISTINCT mod FROM mod_entries WHERE mod LIKE ?;", ("%" + mod + "%", ))
+        if len(mods) != 1:
+            db.close_connection()
+
+            out = f"The following {len(mods)} were found, please choose only one.\n\n"
+
+            for i in mods:
+                out += f"> `{i[0]}`\n"
+
+            out += f"\nUse </statistics get:{Config.statisticsGetCommandID}> and the name of the mod to fetch the mod data."
+
+            embed = Embed(title="Mod lookup", description=out)
+            await ctx.response.send_message(embed=embed, ephemeral=True)
+
+            return
+
+        modname = mods[0][0]
+        data = db.fetch_all("SELECT count(mod), timestamp FROM mod_entries WHERE mod=? GROUP BY timestamp ORDER BY timestamp;", (modname,))
+
+        # Function to generate a list of the last 30 days
+        def last_30_days():
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=29)
+            return [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30)]
+
+        existing_dates = set(date for count, date in data)
+
+        last_30_days_list = last_30_days()
+
+        result = []
+        for date in last_30_days_list:
+            if date in existing_dates:
+                # Use the tuple data if the date exists
+                result.append(next(item for item in data if item[1] == date))
+            else:
+                # Create a zero input if the date doesn't exist
+                result.append((0, date))
+
+        result = [(i[0], "-".join(i[1].split("-")[1:][::-1])) for i in result]
+
+        plt.bar(
+            x=[i[1] for i in result],
+            height=[i[0] for i in result]
+        )
+        plt.xticks(rotation=-60)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)  # Reset the buffer position to the beginning
+
+        total = sum([i[0] for i in result])
+
+        out = f"`{modname}` has been used `{result[-1][0]}` time{'s' if result[-1][0] != 1 else ''} today, "
+        out += f"and `{total}` time{'s' if total != 1 else ''} in the last 30 days."
+
+        embed = Embed(title=f"Statistics - {modname}", description=out)
+
+        await ctx.response.send_message(file=discord.File(buf, filename="card.png"), embed=embed)
+
+
+
+
 @client.event
 async def on_interaction(interaction):
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "report":
@@ -159,7 +269,7 @@ async def on_message(message):
         uuid_pattern = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.IGNORECASE)
         found_uuids = uuid_pattern.findall(message.content)
         if found_uuids:
-            await respond_to_code(message, found_uuids[0])
+            await respond_to_code(message, found_uuids[0], logging)
 
         # Modmail system
         if isinstance(message.channel, discord.channel.DMChannel):
@@ -187,6 +297,9 @@ async def on_message(message):
 
 @client.event
 async def on_ready():
+    statisticsgroup = StatisticsGroup(name="statistics", description="View statistics about the server", guild_ids=[Config.GUILD_ID,])
+    tree.add_command(statisticsgroup)
+
     logging.info("Syncing..")
     await tree.sync(guild=discord.Object(id=Config.GUILD_ID))
     logging.info("Synced!")

@@ -3,13 +3,14 @@ import requests
 import io
 import base64
 import yaml
+import datetime
 from zipfile import ZipFile
 
 from modules.embed import Embed
 from modules.SQLiteMGR import SQLiteManager
 from ui.modcode import ModCodeView
 
-async def respond_to_code(msg, code):
+async def respond_to_code(msg, code, logging):
     url = "https://thunderstore.io/api/experimental/legacyprofile/get/" + code
     try:
         response = requests.get(url)
@@ -44,9 +45,11 @@ async def respond_to_code(msg, code):
                         "SELECT id FROM mod_entries WHERE modcode = ? AND mod = ?",
                         (code, mod['name'],)
                     )
-                    db.execute_query("""
-                    
-                    """)
+                    if not item:
+                        db.execute_query(
+                            "INSERT INTO mod_entries (modcode, mod, timestamp) VALUES (?,?,?)", 
+                            (code, mod['name'], datetime.datetime.now().strftime('%Y-%m-%d'),)
+                        )
                 else:
                     mods.append(f"> ~~`{name} - {version}`~~")
 
