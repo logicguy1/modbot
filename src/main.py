@@ -58,7 +58,6 @@ CREATE TABLE IF NOT EXISTS "mod_entries" (
 	"timestamp"	TEXT,
 	PRIMARY KEY("id" AUTOINCREMENT)
 )
-)
 """)
 db.execute_query("""
 CREATE TABLE IF NOT EXISTS "verify_attempts" (
