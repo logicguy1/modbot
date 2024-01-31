@@ -48,7 +48,7 @@ async def create_ticket(ctx, logging):
     embed.add_field(name="Timestamp", value=f"<t:{int(time.time())}:R>", inline=True)
     embed.add_field(name="Ticket referance", value=f"`Ticket-{str(idx).zfill(4)}`", inline=True)
 
-    msg = await thread.send(f"<@&1201828487821013003>", embed=embed, view=TicketInterfaceView())
+    msg = await thread.send(f"<@&{Config.MOD_ROLE_ID}>", embed=embed, view=TicketInterfaceView())
     await msg.pin()
     await thread.add_user(ctx.user)
     await ctx.response.send_message(f"Your ticket has been opened as <#{thread.id}>.", ephemeral=True)
