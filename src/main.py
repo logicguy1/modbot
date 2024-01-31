@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 from discord import ui
 import requests
+from bs4 import BeautifulSoup
 import io
 import re
 import time
@@ -32,6 +33,7 @@ from ui.report import OpenReportView, ReportModal
 from ui.action import TimeoutModal, BanView, KickView
 from ui.error import OpenErrorView
 from ui.verify import OpenVerifyView, verify_member
+from ui.ticket import TicketView, create_ticket, link_ticket, close_ticket, add_user, remove_user
 
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
@@ -69,53 +71,63 @@ CREATE TABLE IF NOT EXISTS "verify_attempts" (
 """)
 db.close_connection()
 
-@tree.command(name = "showreport", description = "Show the HR Contact Form interface", guild=discord.Object(id=Config.GUILD_ID)) 
-async def create_report(ctx):
-    if ctx.user.id not in Config.ADMIN_IDS: # Me :)
-        await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
-        return
-    embed = Embed(title = "Disciplinary Report Form", description = f"Utilize this interface to initiate a Disciplinary Report Form with a User.")
-    await ctx.response.send_message("Did that for ya :)", ephemeral=True)
-    await ctx.channel.send(embed = embed, view=OpenReportView())
+class SetupGroup(app_commands.Group):
+    @tree.command(name = "internalreport", description = "Show the HR Contact Form interface", guild=discord.Object(id=Config.GUILD_ID)) 
+    async def create_report(self, ctx):
+        if ctx.user.id not in Config.ADMIN_IDS: # Me :)
+            await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
+            return
+        embed = Embed(title = "Disciplinary Report Form", description = f"Utilize this interface to initiate a Disciplinary Report Form with a User.")
+        await ctx.response.send_message("Did that for ya :)", ephemeral=True)
+        await ctx.channel.send(embed = embed, view=OpenReportView())
 
-
-@tree.command(name = "showverify", description = "Show the HR Verification interface", guild=discord.Object(id=Config.GUILD_ID)) 
-async def create_verify(ctx):
-    if ctx.user.id not in Config.ADMIN_IDS: # Me :)
-        await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
-        return
-    embed = Embed(title = "HR Verification Interface", description = f"""Management requires new employees at the company to verify themselves, this is to avoid spam accounts from entering the sever.
+    @tree.command(name = "verify", description = "Show the internal HR Verification interface", guild=discord.Object(id=Config.GUILD_ID)) 
+    async def create_verify(self, ctx):
+        if ctx.user.id not in Config.ADMIN_IDS: # Me :)
+            await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
+            return
+        embed = Embed(title = "HR Verification Interface", description = f"""Management requires new employees at the company to verify themselves, this is to avoid spam accounts from entering the sever.
 
 To be eligable to join the company you must comply with the following:
 - Your account must be `{Config.ACCOUNT_MIN_AGE}` day{'s' if Config.ACCOUNT_MIN_AGE !=1 else ''} or older.
 - You must have at least `{Config.ACCOUNT_MIN_CONNECT}` external account{'s' if Config.ACCOUNT_MIN_CONNECT !=1 else ''} connected to your profile.
 
 **We will never refer you to an external site or ask you for any personal information**""")
-    await ctx.response.send_message("Did that for ya :)", ephemeral=True)
-    await ctx.channel.send(embed = embed, view=OpenVerifyView())
+        await ctx.response.send_message("Did that for ya :)", ephemeral=True)
+        await ctx.channel.send(embed = embed, view=OpenVerifyView())
+
+    @tree.command(name = "ticket", description = "Show the external HR Contact Form interface", guild=discord.Object(id=Config.GUILD_ID)) 
+    async def create_ticket(self, ctx):
+        if ctx.user.id not in Config.ADMIN_IDS: # Me :)
+            await ctx.response.send_message("You don't have proper permissions to run this command, please consult the Security Team if you believe this is a mistake.", ephemeral=True)
+            return
+        embed = Embed(title = "Human Resources", description = f"For urgent matters requiring immediate attention, we encourage you to open support tickets here, enabling seamless communication with our dedicated team of moderators who are committed to resolving issues promptly and ensuring a positive experience..")
+        await ctx.response.send_message("Did that for ya :)", ephemeral=True)
+        await ctx.channel.send(embed = embed, view=TicketView())
 
 
-@tree.command(name = "send", description = "Send a message to a reported user", guild=discord.Object(id=Config.GUILD_ID))
-async def send(ctx, message: str):
-    member = ctx.guild.get_member(int(ctx.channel.name.split(" - ")[0]))
-    if member is not None:
-        embed = Embed(description=message)
-        embed.set_author(
-            name=str(ctx.user),
-            icon_url=ctx.user.display_avatar.url,
-        )
-        embed.set_color("blue")
+class ReportGroup(app_commands.Group):
+    @tree.command(name = "send", description = "Send a message to a reported user", guild=discord.Object(id=Config.GUILD_ID))
+    async def send(self, ctx, message: str):
+        member = ctx.guild.get_member(int(ctx.channel.name.split(" - ")[0]))
+        if member is not None:
+            embed = Embed(description=message)
+            embed.set_author(
+                name=str(ctx.user),
+                icon_url=ctx.user.display_avatar.url,
+            )
+            embed.set_color("blue")
 
-        await member.send(embed=embed)
-        await ctx.response.send_message(embed=embed)
-    else:
-        embed = Embed(description="Unable to send message")
-        embed.set_author(
-            name=str(ctx.user.author),
-            icon_url=ctx.user.display_avatar.url,
-        )
-        embed.set_color("blue")
-        await ctx.response.send_message(embed=embed)
+            await member.send(embed=embed)
+            await ctx.response.send_message(embed=embed)
+        else:
+            embed = Embed(description="Unable to send message")
+            embed.set_author(
+                name=str(ctx.user.author),
+                icon_url=ctx.user.display_avatar.url,
+            )
+            embed.set_color("blue")
+            await ctx.response.send_message(embed=embed)
 
 
 class StatisticsGroup(app_commands.Group):
@@ -134,7 +146,7 @@ class StatisticsGroup(app_commands.Group):
 
         db.close_connection()
 
-        out = "See what the most pobular mods in Cosmic Collectors are\n\n"
+        out = "See what the most popular mods in Cosmic Collectors are\n\n"
         for idx, i in enumerate(mods):
             out += f"> *{idx+1 + (page-1)*10}.* `{i[0]}` - {i[1]} uses\n"
 
@@ -203,17 +215,36 @@ class StatisticsGroup(app_commands.Group):
         out = f"`{modname}` has been used `{result[-1][0]}` time{'s' if result[-1][0] != 1 else ''} today, "
         out += f"and `{total}` time{'s' if total != 1 else ''} in the last 30 days."
 
+        author = modname.split("-")[0]
+        name = "-".join(modname.split("-")[1:])
+        print(author, name)
+
+        response = requests.get(f"https://thunderstore.io/c/lethal-company/p/{author}/{name}/")
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        header = soup.find("div", class_="card-header")
+        img = header.find("img", class_="align-self-center")["src"]
+
+        body = soup.find("div", class_="card-body")
+        table = list(body.find("table").children)
+        downloads = table[3].text.split("\n")[2].strip()
+        likes = table[5].text.split("\n")[2].strip()
+        print(downloads, likes)
+
         embed = Embed(title=f"Statistics - {modname}", description=out)
+        embed.set_thumbnail(url=img)
+
+        embed.add_field(name="Downloads", value="`"+downloads+"` <:LethalPoint:1187900986300309566>", inline=True)
+        embed.add_field(name="Likes", value="`"+likes+"` <:LethalUwU:1188231578674004030>", inline=True)
 
         await ctx.response.send_message(file=discord.File(buf, filename="card.png"), embed=embed)
-
-
 
 
 @client.event
 async def on_interaction(interaction):
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "report":
         await interaction.response.send_modal(ReportModal())
+
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id").startswith("ban"):
         await interaction.response.send_message(
             "Are you sure you want to ban this member?",
@@ -221,6 +252,7 @@ async def on_interaction(interaction):
                 member_id=interaction.data.get("custom_id").split("_")[2], 
             )
         )
+
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id").startswith("kick"):
         await interaction.response.send_message(
             "Are you sure you want to kick this member?",
@@ -228,15 +260,32 @@ async def on_interaction(interaction):
                 member_id=interaction.data.get("custom_id").split("_")[2], 
             )
         )
+
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id").startswith("mute"):
         await interaction.response.send_modal(
             TimeoutModal(
                 member_id=interaction.data.get("custom_id").split("_")[2]
             )
         )
+
+    if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id").startswith("link"):
+        await link_ticket(interaction, logging)
+
     if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "verify":
-        print("Verifying")
         await verify_member(interaction, logging)
+
+    if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "ticketnew":
+        await create_ticket(interaction, logging)
+
+    if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "ticketclose":
+        await close_ticket(interaction, logging)
+
+    if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "ticketadd":
+        await add_user(interaction, logging)
+
+    if interaction.data.get("component_type") == 2 and interaction.data.get("custom_id") == "ticketremove":
+        await remove_user(interaction, logging)
+
 
 
 @tree.error
@@ -298,6 +347,12 @@ async def on_message(message):
 async def on_ready():
     statisticsgroup = StatisticsGroup(name="statistics", description="View statistics about the server", guild_ids=[Config.GUILD_ID,])
     tree.add_command(statisticsgroup)
+
+    setupgroup = SetupGroup(name="setup", description="Basic setup commands for the bot", guild_ids=[Config.GUILD_ID,])
+    tree.add_command(setupgroup)
+
+    reportgroup = ReportGroup(name="report", description="Interaction comamnds for the report system", guild_ids=[Config.GUILD_ID,])
+    tree.add_command(reportgroup)
 
     logging.info("Syncing..")
     await tree.sync(guild=discord.Object(id=Config.GUILD_ID))

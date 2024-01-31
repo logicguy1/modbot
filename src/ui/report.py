@@ -64,3 +64,6 @@ class ReportView(ui.View):
         btn = ui.Button(label = "Timeout", custom_id = f"mute_{channel_id}_{user_id}", style = discord.ButtonStyle.grey)
         self.add_item(btn)
 
+        btn = ui.Button(label = "Link Ticket", custom_id = f"link_{channel_id}_{user_id}", style = discord.ButtonStyle.primary)
+        self.add_item(btn)
+
