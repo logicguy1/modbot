@@ -69,6 +69,20 @@ CREATE TABLE IF NOT EXISTS "verify_attempts" (
 	PRIMARY KEY("id" AUTOINCREMENT)
 )
 """)
+
+db.execute_query("""
+CREATE TABLE IF NOT EXISTS "tickets" (
+	"id"	INTEGER,
+	"author_id"	TEXT,
+	"channel_id"	TEXT,
+	"timestamp"	TEXT,
+	"referance"	TEXT,
+	"report_id"	TEXT,
+	"status"	TEXT DEFAULT 'open',
+	PRIMARY KEY("id" AUTOINCREMENT)
+)
+""")
+
 db.close_connection()
 
 class SetupGroup(app_commands.Group):
