@@ -8,7 +8,7 @@ The bot allows moderators to open tickets, track issues, open up a two way modma
 The bots main purpose is to aid in moderation wile providing a secure interface for moderators, as to avoid moderators getting compromised and minising damege to the server. The bot uses role based permissions instead of the default discord permissions, this provides a harder to script interface while still being convinient for moderators. 
 
 ### Moderation
-- Handle verificaiton by checking the connected accounts to a new guild member, this is saved so another user trying to verify with the same credentials will be rejected.
+- Handle verificaiton by checking the connected accounts to a new guild member, this is saved so another user trying to verify with the same credentials will be rejected. (It should be noted this feature is no longer supported by discords TOS and is therefor recommended not to be used)
 - Handle tickets from server members, a server member can use a button to create a ticket that opens up between them and the server moderators.
 - Internal report management and tracking, your staff team can open reports on a user to easily communicate, share proof and take actions on a guild members account.
 - Linking tickets from the ticket system to reports in the report system, this intergration allows the staff team to escallate a ticket opened by a guild member into a report.
