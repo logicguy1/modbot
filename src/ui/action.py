@@ -109,7 +109,7 @@ class KickView(ui.View):
         super().__init__(timeout = None)
         self.member_id = int(member_id)
 
-    @discord.ui.button(label = "Yes", custom_id = "yesban", style = discord.ButtonStyle.danger)
+    @discord.ui.button(label = "Yes", custom_id = "yeskick", style = discord.ButtonStyle.danger)
     async def test(self, interaction: discord.Interaction, button: discord.Button):
         member = interaction.guild.get_member(self.member_id)
 
@@ -136,7 +136,7 @@ class KickView(ui.View):
 
         await interaction.message.delete()
 
-    @discord.ui.button(label = "No", custom_id = "noban", style = discord.ButtonStyle.gray)
+    @discord.ui.button(label = "No", custom_id = "nokick", style = discord.ButtonStyle.gray)
     async def test2(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.message.delete()
         await interaction.response.send_message("Okidoki i wont kick em them")
