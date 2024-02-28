@@ -22,6 +22,8 @@ class ReportModal(ui.Modal, title='Report Member'):
         super().__init__()
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.defer()
+        
         channel = interaction.guild.get_channel(Config.FORUM_ID)
         member = interaction.guild.get_member(int(str(self.userid)))
 
