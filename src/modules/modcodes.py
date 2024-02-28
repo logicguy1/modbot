@@ -28,7 +28,7 @@ async def respond_to_code(msg, code, logging):
             export_r2x_data = zip_file.read("export.r2x")
             data = yaml.safe_load(export_r2x_data)
 
-            name = data["profileName"]
+            namee = data["profileName"]
             modcount = len([i for i in data["mods"] if i['enabled']])
 
             db = SQLiteManager("database.db", logging)
@@ -56,7 +56,7 @@ async def respond_to_code(msg, code, logging):
             db.close_connection()
 
             mod_array_display = "\n".join(mods)
-            embed = Embed(title=f"ModCode - {name}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n> **`{code}`**\n To browse the mods, use the button below.")
+            embed = Embed(title=f"ModCode - {namee}", description=f"{msg.author.mention} posted a modcode with `{modcount} mods`.\n> **`{code}`**\n To browse the mods, use the button below.")
             await msg.reply(embed=embed, view=ModCodeView(text=mod_array_display))
 
     except requests.exceptions.RequestException as e:
